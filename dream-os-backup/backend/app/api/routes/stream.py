@@ -51,9 +51,193 @@ def _gen_event(event_data: str):
     return event_data
 
 
+# ════════════════════════════════════════════════════════════════
+# V3 自主开发任务识别 (聊天入口自动路由)
+# ════════════════════════════════════════════════════════════════
+
+# 大型开发任务关键词 (命中即触发自主开发模式)
+_DEV_KEYWORDS = [
+    "开发一个", "开发一个网站", "开发一个 app", "开发一个应用",
+    "做一个网站", "做一个 app", "做一个应用", "做一个系统",
+    "写一个网站", "写一个 app", "写一个项目",
+    "帮我开发", "帮我做", "帮我写一个", "帮我部署",
+    "构建一个", "搭建一个", "实现一个",
+    "量化系统", "量化平台", "股票平台", "电商平台",
+    "完整的项目", "完整的网站", "完整的系统", "完整的应用",
+    "部署服务器", "部署项目", "部署网站",
+    "自主开发", "自动开发",
+]
+
+# 简单查询排除词 (即使命中开发关键词也走普通聊天)
+_SIMPLE_QUERY_KEYWORDS = [
+    "天气", "股票行情", "黄金价格", "你好", "介绍你自己",
+    "是什么", "什么是", "怎么样", "多少钱", "解释一下",
+    "翻译", "计算", "查询",
+]
+
+def _is_dev_task(message: str) -> bool:
+    """识别是否为大型自主开发任务"""
+    if not message or len(message) < 8:
+        return False
+    # 排除简单查询
+    for kw in _SIMPLE_QUERY_KEYWORDS:
+        if kw in message:
+            return False
+    # 命中开发关键词
+    for kw in _DEV_KEYWORDS:
+        if kw in message:
+            return True
+    # 长消息 + 包含"开发/项目/网站/app/系统"任意一个
+    if len(message) > 15:
+        for kw in ["开发", "项目", "网站", "app", "APP", "系统", "平台", "部署"]:
+            if kw in message:
+                return True
+    return False
+
+
+async def _run_v3_dev_via_chat(req: ChatRequest, db: AsyncSession):
+    """在聊天流中启动 V3 自主开发，桥接 SSE 事件"""
+    import uuid
+    import asyncio
+    from datetime import datetime
+    from ...models.dev_task import DevTask
+    from ...tools import ToolManager, ShellTool, FileTool, HttpTool
+    from ...core.v3 import AutoLoop, SSEv2
+
+    task_id = str(uuid.uuid4())[:8]
+
+    # 创建 DB 记录
+    dev_task = DevTask(
+        id=task_id,
+        requirement=req.requirement if hasattr(req, 'requirement') else req.message,
+        status="planning",
+        max_iterations=3,
+        project_id=req.project_id,
+        workspace_path=f"/workspace/projects/{task_id}",
+    )
+    db.add(dev_task)
+    await db.commit()
+
+    requirement = req.message
+    event_queue: asyncio.Queue = asyncio.Queue()
+
+    # SSE 事件格式器 — 转换为前端可识别的格式
+    def format_sse(event: dict) -> str:
+        import json
+        return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    async def run_dev():
+        try:
+            # 注册工具
+            tm = ToolManager()
+            tm.register(ShellTool())
+            tm.register(FileTool())
+            tm.register(HttpTool())
+
+            auto_loop = AutoLoop(tm)
+
+            # emit 回调 — 桥接 V3 事件到 chat SSE 流
+            async def emit(event: dict):
+                # 注入 task_id (前端需要)
+                event["task_id"] = task_id
+                # 持久化到 DB
+                try:
+                    if event.get("type") == "agent_start":
+                        dev_task.current_agent = event.get("agent", "")
+                        dev_task.status = "running"
+                        await db.commit()
+                    elif event.get("type") == "agent_complete":
+                        bb = auto_loop.get_blackboard()
+                        dev_task.plan = bb.plan
+                        dev_task.architecture = bb.architecture
+                        dev_task.files = list(bb.files.keys()) if bb.files else []
+                        dev_task.test_results = bb.test_results
+                        dev_task.deployment = bb.deployment
+                        dev_task.reports = bb.reports
+                        dev_task.iteration = bb.iteration
+                        await db.commit()
+                except Exception:
+                    pass
+                # 推送到 SSE 队列
+                await event_queue.put(format_sse(event))
+
+            # 启动自主开发循环
+            result = await auto_loop.run(
+                requirement=requirement,
+                task_id=task_id,
+                emit=emit,
+                max_iterations=3,
+            )
+
+            # 完成事件
+            dev_task.status = "completed" if result.get("success") else "failed"
+            dev_task.summary = result.get("summary", "")
+            dev_task.result = result.get("summary", "")
+            dev_task.completed_at = datetime.utcnow()
+            await db.commit()
+
+            # 推送完成事件 (含成果物)
+            completion_event = {
+                "type": "dev_complete",
+                "task_id": task_id,
+                "success": result.get("success", False),
+                "summary": result.get("summary", ""),
+                "deployment": dev_task.deployment,
+                "files": dev_task.files,
+                "reports": dev_task.reports,
+            }
+            if not result.get("success"):
+                completion_event["error"] = result.get("error", "未知错误")
+            await event_queue.put(format_sse(completion_event))
+
+        except Exception as e:
+            logger.error(f"V3 dev task {task_id} failed: {e}", exc_info=True)
+            dev_task.status = "failed"
+            dev_task.error_log = str(e)
+            await db.commit()
+            await event_queue.put(format_sse({
+                "type": "error",
+                "task_id": task_id,
+                "error": str(e),
+            }))
+        finally:
+            await event_queue.put(None)  # 结束信号
+
+    # 启动后台任务
+    task = asyncio.create_task(run_dev())
+
+    # 发送 dev_start 事件 (最先推送)
+    yield format_sse({
+        "type": "dev_start",
+        "task_id": task_id,
+        "requirement": requirement,
+    })
+
+    # 从队列读取并 yield
+    try:
+        while True:
+            event_data = await event_queue.get()
+            if event_data is None:
+                break
+            yield event_data
+    finally:
+        if not task.done():
+            task.cancel()
+        yield "data: [DONE]\n\n"
+
+
 @router.post("/stream")
 async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
-    """SSE 流式对话 — 完整 Agent Pipeline 闭环 + 工作状态可视化"""
+    """SSE 流式对话 — 自动识别大型开发任务，融合 V3 自主开发"""
+
+    # ═══ V3 自主开发任务自动识别 ═══
+    if _is_dev_task(req.message):
+        return StreamingResponse(
+            _run_v3_dev_via_chat(req, db),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+        )
+
     registry = get_registry()
 
     async def gen():
