@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dream OS · 自主开发控制台</title>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #1c2128;
+  --ink: #e6edf3; --muted: #7d8590; --rule: #30363d;
+  --accent: #6c5ce7; --accent2: #00cea5; --accent3: #fd79a8;
+  --accent4: #fdcb6e; --glass: rgba(255,255,255,0.03);
+  --radius: 10px; --radius-sm: 6px;
+  --mono: 'JetBrains Mono','Fira Code',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--sans); background:var(--bg); color:var(--ink); min-height:100vh; }
+
+.container { max-width:1200px; margin:0 auto; padding:24px 16px; }
+
+.header { text-align:center; padding:1.5rem 0; position:relative; }
+.header .badge { display:inline-block; padding:3px 12px; border-radius:100px;
+  background:rgba(108,92,231,0.1); border:1px solid rgba(108,92,231,0.2);
+  font-size:0.75rem; color:var(--accent); margin-bottom:0.75rem; letter-spacing:0.05em; }
+.header h1 { font-size:1.6rem; font-weight:700; margin-bottom:0.3rem; }
+.header p { color:var(--muted); font-size:0.9rem; }
+
+.page-nav { display:flex; justify-content:center; gap:0; margin:-0.5rem auto 1rem; max-width:360px; }
+.page-nav a { flex:1; display:flex; align-items:center; justify-content:center; gap:0.3rem;
+  padding:0.45rem 0; border-bottom:2px solid transparent; color:var(--muted);
+  font-size:0.75rem; font-weight:500; text-decoration:none; transition:all 0.25s; }
+.page-nav a:hover { color:var(--ink); }
+.page-nav a.active { color:var(--accent2); border-bottom-color:var(--accent2); font-weight:600; }
+
+/* ── 输入区 ── */
+.input-section { background:var(--bg2); border:1px solid var(--rule); border-radius:var(--radius);
+  padding:1.25rem; margin-bottom:1.5rem; }
+.input-section label { font-size:0.8rem; color:var(--muted); margin-bottom:0.5rem; display:block; }
+.input-section textarea { width:100%; background:var(--bg); border:1px solid var(--rule);
+  border-radius:var(--radius-sm); padding:0.75rem; color:var(--ink); font-size:0.9rem;
+  font-family:inherit; min-height:80px; resize:vertical; outline:none; transition:border-color 0.3s; }
+.input-section textarea:focus { border-color:var(--accent); }
+.input-section .actions { display:flex; gap:0.5rem; margin-top:0.75rem; align-items:center; }
+.input-section button { background:var(--accent); border:none; color:#fff;
+  padding:0.6rem 1.5rem; border-radius:var(--radius-sm); font-size:0.85rem; font-weight:600;
+  cursor:pointer; font-family:inherit; transition:all 0.2s; }
+.input-section button:hover { opacity:0.9; }
+.input-section button:disabled { opacity:0.5; cursor:not-allowed; }
+.input-section .iter-label { font-size:0.75rem; color:var(--muted); margin-left:auto; }
+.input-section input[type=range] { width:80px; vertical-align:middle; }
+
+/* ── Agent 状态面板 ── */
+.agents-panel { display:grid; grid-template-columns:repeat(4,1fr); gap:0.5rem; margin-bottom:1.5rem; }
+@media(max-width:768px){ .agents-panel { grid-template-columns:repeat(2,1fr); } }
+.agent-card { background:var(--bg2); border:1px solid var(--rule); border-radius:var(--radius-sm);
+  padding:0.75rem; text-align:center; transition:all 0.3s; position:relative; overflow:hidden; }
+.agent-card.active { border-color:var(--accent); background:rgba(108,92,231,0.05);
+  box-shadow:0 0 12px rgba(108,92,231,0.15); }
+.agent-card.done { border-color:var(--accent2); }
+.agent-card.failed { border-color:var(--accent3); }
+.agent-card .emoji { font-size:1.3rem; margin-bottom:0.25rem; }
+.agent-card .name { font-size:0.75rem; font-weight:600; }
+.agent-card .role { font-size:0.65rem; color:var(--muted); }
+.agent-card .status { font-size:0.6rem; margin-top:0.25rem; }
+.agent-card .status.waiting { color:var(--muted); }
+.agent-card .status.running { color:var(--accent); }
+.agent-card .status.done { color:var(--accent2); }
+.agent-card .status.failed { color:var(--accent3); }
+.agent-card .spinner { position:absolute; top:4px; right:4px; width:10px; height:10px;
+  border:1.5px solid transparent; border-top-color:var(--accent); border-radius:50%;
+  animation:spin 0.8s linear infinite; display:none; }
+.agent-card.active .spinner { display:block; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── 进度条 ── */
+.progress-bar { background:var(--bg2); border:1px solid var(--rule); border-radius:var(--radius-sm);
+  padding:0.75rem 1rem; margin-bottom:1.5rem; }
+.progress-bar .label { font-size:0.75rem; color:var(--muted); margin-bottom:0.4rem;
+  display:flex; justify-content:space-between; }
+.progress-bar .track { height:6px; background:var(--bg3); border-radius:3px; overflow:hidden; }
+.progress-bar .fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2));
+  width:0%; transition:width 0.5s ease; border-radius:3px; }
+
+/* ── 日志面板 ── */
+.log-panel { background:var(--bg2); border:1px solid var(--rule); border-radius:var(--radius);
+  margin-bottom:1.5rem; overflow:hidden; }
+.log-header { padding:0.75rem 1rem; border-bottom:1px solid var(--rule);
+  display:flex; align-items:center; justify-content:space-between; }
+.log-header h3 { font-size:0.85rem; font-weight:600; }
+.log-header .summary { font-size:0.7rem; color:var(--muted); }
+.log-body { max-height:400px; overflow-y:auto; padding:0.5rem; font-family:var(--mono); font-size:0.75rem; }
+.log-body::-webkit-scrollbar { width:6px; }
+.log-body::-webkit-scrollbar-thumb { background:var(--rule); border-radius:3px; }
+.log-entry { padding:0.3rem 0.5rem; margin-bottom:0.15rem; border-radius:3px; line-height:1.5;
+  display:flex; gap:0.5rem; align-items:flex-start; }
+.log-entry .ts { color:var(--muted); flex-shrink:0; font-size:0.65rem; padding-top:1px; }
+.log-entry .agent-tag { padding:1px 6px; border-radius:3px; font-size:0.65rem; font-weight:600; flex-shrink:0; }
+.log-entry .msg { flex:1; word-break:break-word; }
+.log-entry.agent_start { background:rgba(108,92,231,0.05); }
+.log-entry.agent_complete { background:rgba(0,206,201,0.05); }
+.log-entry.agent_tool_call { background:rgba(253,203,110,0.05); }
+.log-entry.error { background:rgba(253,121,168,0.05); }
+.log-entry.loop_iteration { background:rgba(108,92,231,0.08); border-left:2px solid var(--accent); }
+
+/* ── 结果面板 ── */
+.result-panel { display:none; }
+.result-panel.show { display:block; }
+.result-section { background:var(--bg2); border:1px solid var(--rule); border-radius:var(--radius);
+  padding:1rem; margin-bottom:1rem; }
+.result-section h3 { font-size:0.8rem; color:var(--muted); font-weight:600; text-transform:uppercase;
+  letter-spacing:0.05em; margin-bottom:0.75rem; padding-bottom:0.5rem; border-bottom:1px solid var(--rule); }
+.result-section .content { font-size:0.85rem; line-height:1.6; white-space:pre-wrap; }
+.result-section .content code { background:var(--bg3); padding:2px 6px; border-radius:3px;
+  font-family:var(--mono); font-size:0.8rem; }
+.result-section .file-list { list-style:none; }
+.result-section .file-list li { padding:0.3rem 0; border-bottom:1px solid var(--rule);
+  display:flex; justify-content:space-between; font-size:0.8rem; }
+.result-section .file-list li:last-child { border-bottom:none; }
+.result-section .file-list .size { color:var(--muted); font-size:0.75rem; }
+
+/* ── 任务列表 ── */
+.task-list { margin-top:1.5rem; }
+.task-item { background:var(--bg2); border:1px solid var(--rule); border-radius:var(--radius-sm);
+  padding:0.75rem 1rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.75rem;
+  cursor:pointer; transition:border-color 0.2s; }
+.task-item:hover { border-color:var(--accent); }
+.task-item .status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.task-item .status-dot.completed { background:var(--accent2); }
+.task-item .status-dot.failed { background:var(--accent3); }
+.task-item .status-dot.running { background:var(--accent); animation:pulse 1.5s infinite; }
+.task-item .status-dot.pending { background:var(--muted); }
+@keyframes pulse { 50% { opacity:0.5; } }
+.task-item .req { flex:1; font-size:0.85rem; }
+.task-item .meta { font-size:0.7rem; color:var(--muted); }
+
+/* ── 示例按钮 ── */
+.examples { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem; }
+.examples button { background:var(--glass); border:1px solid var(--rule); color:var(--muted);
+  padding:0.35rem 0.75rem; border-radius:100px; font-size:0.72rem; cursor:pointer;
+  font-family:inherit; transition:all 0.2s; }
+.examples button:hover { border-color:var(--accent); color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <div class="badge">自主软件工程师 · V3</div>
+    <h1>Dream OS 自主开发控制台</h1>
+    <p>用户一句话，AI 自主完成整个软件开发项目</p>
+  </header>
+
+  <nav class="page-nav">
+    <a href="status-widget.html">💬 AI 聊天</a>
+    <a href="project-workspace.html">📁 项目工作区</a>
+    <a href="v3-dev.html" class="active">🤖 自主开发</a>
+    <a href="tool-center.html">🔧 工具中心</a>
+  </nav>
+
+  <!-- 需求输入 -->
+  <div class="input-section">
+    <label>描述你要开发的项目 (越详细越好)</label>
+    <textarea id="requirement" placeholder="例如：帮我开发一个待办事项管理 API，支持增删改查，用 Python + FastAPI + SQLite"></textarea>
+    <div class="examples">
+      <button onclick="setExample(0)">📝 待办事项 API</button>
+      <button onclick="setExample(1)">🌡 天气查询网站</button>
+      <button onclick="setExample(2)">📊 数据可视化面板</button>
+      <button onclick="setExample(3)">🔗 URL 短链接服务</button>
+    </div>
+    <div class="actions">
+      <button id="startBtn" onclick="startDev()">🚀 开始自主开发</button>
+      <span class="iter-label">最大修复迭代: <span id="iterValue">3</span> 次</span>
+      <input type="range" id="iterSlider" min="1" max="5" value="3" oninput="document.getElementById('iterValue').textContent=this.value">
+    </div>
+  </div>
+
+  <!-- Agent 状态面板 -->
+  <div class="agents-panel" id="agentsPanel"></div>
+
+  <!-- 进度条 -->
+  <div class="progress-bar" id="progressBar" style="display:none">
+    <div class="label">
+      <span id="progressLabel">准备中...</span>
+      <span id="progressPercent">0%</span>
+    </div>
+    <div class="track"><div class="fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- 实时日志 -->
+  <div class="log-panel">
+    <div class="log-header">
+      <h3>📋 实时开发日志</h3>
+      <span class="summary" id="logSummary"></span>
+    </div>
+    <div class="log-body" id="logBody">
+      <div style="text-align:center;color:var(--muted);padding:2rem;font-size:0.8rem">
+        提交需求后，这里会实时显示 8 个 Agent 的工作过程
+      </div>
+    </div>
+  </div>
+
+  <!-- 开发结果 -->
+  <div class="result-panel" id="resultPanel">
+    <div class="result-section">
+      <h3>📊 开发摘要</h3>
+      <div class="content" id="resultSummary"></div>
+    </div>
+    <div class="result-section">
+      <h3>📁 项目文件</h3>
+      <ul class="file-list" id="resultFiles"></ul>
+    </div>
+    <div class="result-section">
+      <h3>🚀 部署信息</h3>
+      <div class="content" id="resultDeployment"></div>
+    </div>
+  </div>
+
+  <!-- 历史任务 -->
+  <div class="task-list" id="taskListSection">
+    <div class="result-section">
+      <h3>📜 历史开发任务</h3>
+      <div id="taskList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const AGENTS = [
+    {role:'planner',name:'规划师',emoji:'📋'},
+    {role:'architect',name:'架构师',emoji:'🏗'},
+    {role:'coder',name:'程序员',emoji:'💻'},
+    {role:'executor',name:'执行者',emoji:'⚡'},
+    {role:'reviewer',name:'审查员',emoji:'🔍'},
+    {role:'tester',name:'测试员',emoji:'🧪'},
+    {role:'deployer',name:'部署员',emoji:'🚀'},
+    {role:'reporter',name:'报告员',emoji:'📝'},
+  ];
+
+  const EXAMPLES = [
+    '帮我开发一个待办事项管理 API，支持增删改查、标记完成、按优先级排序。用 Python + FastAPI + SQLite，返回 JSON 格式。',
+    '帮我开发一个天气查询网站，用户输入城市名可以查看当前天气。前端用纯 HTML，后端用 Python Flask，数据从公开 API 获取。',
+    '帮我开发一个数据可视化面板，有柱状图和饼图，数据从 SQLite 数据库读取，前端用纯 HTML + Chart.js。',
+    '帮我开发一个 URL 短链接服务，支持长链接转短链接、短链接重定向。用 Python + FastAPI + SQLite。',
+  ];
+
+  const agentStates = {};
+  AGENTS.forEach(a => agentStates[a.role] = 'waiting');
+
+  // 初始化 Agent 面板
+  function initAgentsPanel() {
+    const panel = document.getElementById('agentsPanel');
+    panel.innerHTML = AGENTS.map(a => `
+      <div class="agent-card" id="agent-${a.role}">
+        <div class="spinner"></div>
+        <div class="emoji">${a.emoji}</div>
+        <div class="name">${a.name}</div>
+        <div class="role">${a.role}</div>
+        <div class="status waiting">等待中</div>
+      </div>
+    `).join('');
+  }
+
+  function setAgentState(role, state, info) {
+    agentStates[role] = state;
+    const card = document.getElementById('agent-' + role);
+    if (!card) return;
+    card.className = 'agent-card ' + (state === 'running' ? 'active' : state === 'done' ? 'done' : state === 'failed' ? 'failed' : '');
+    const statusEl = card.querySelector('.status');
+    statusEl.className = 'status ' + state;
+    const labels = {waiting:'等待中', running:'工作中', done:'已完成', failed:'失败'};
+    statusEl.textContent = labels[state] || state;
+    if (info) statusEl.textContent += ' · ' + info;
+  }
+
+  // 添加日志
+  function addLog(event) {
+    const body = document.getElementById('logBody');
+    if (body.querySelector('div[style]')) body.innerHTML = '';
+
+    const ts = new Date(event.timestamp || Date.now()).toLocaleTimeString('zh-CN', {hour12:false});
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + (event.type || '');
+
+    let agentTag = '';
+    if (event.agent) {
+      const a = AGENTS.find(x => x.role === event.agent);
+      const colors = {
+        planner:'#6c5ce7', architect:'#0984e3', coder:'#00cea5', executor:'#fdcb6e',
+        reviewer:'#fd79a8', tester:'#e17055', deployer:'#00b894', reporter:'#a29bfe',
+      };
+      const c = colors[event.agent] || '#7d8590';
+      agentTag = `<span class="agent-tag" style="background:${c}22;color:${c}">${a ? a.emoji : ''} ${event.agent}</span>`;
+    }
+
+    let msg = '';
+    switch(event.type) {
+      case 'dev_start': msg = '🚀 开发任务已启动'; break;
+      case 'dev_complete': msg = (event.success ? '✅' : '❌') + ' 开发' + (event.success ? '完成' : '失败') + ' (耗时 ' + Math.round(event.duration_ms/1000) + 's)'; break;
+      case 'agent_start': msg = '▶ ' + (event.name || event.agent) + ' 开始工作'; break;
+      case 'agent_tool_call': msg = '🔧 调用 ' + event.tool + ': ' + JSON.stringify(event.arguments).slice(0,100); break;
+      case 'agent_tool_result': msg = (event.success ? '✓' : '✗') + ' ' + event.tool + ': ' + (event.output || '').slice(0,150); break;
+      case 'agent_complete': msg = (event.success ? '✓' : '✗') + ' ' + event.agent + ' 完成 (' + event.tool_calls + ' 次工具调用)'; break;
+      case 'agent_handoff': msg = '→ ' + event.from + ' → ' + event.to; break;
+      case 'loop_iteration': msg = '🔄 第 ' + event.iteration + '/' + event.max_iterations + ' 轮: ' + (event.reason || event.status); break;
+      case 'progress_update': msg = '📊 进度: ' + event.percent + '% (' + event.completed + '/' + event.total + ')'; break;
+      case 'file_created': msg = '📄 文件: ' + event.filepath + ' (' + event.action + ')'; break;
+      case 'test_result': msg = (event.passed ? '✅ 测试通过' : '❌ 测试失败') + ' (' + (event.total - event.failures) + '/' + event.total + ')'; break;
+      case 'deployment_info': msg = '🚀 部署: ' + event.url + ' [' + event.status + ']'; break;
+      case 'confirmation_required': msg = '⚠️ 需要确认: ' + event.command; break;
+      case 'error': msg = '❌ 错误: ' + event.message; break;
+      default: msg = JSON.stringify(event).slice(0,200);
+    }
+
+    entry.innerHTML = `<span class="ts">${ts}</span>${agentTag}<span class="msg">${msg}</span>`;
+    body.appendChild(entry);
+    body.scrollTop = body.scrollHeight;
+
+    // 更新摘要
+    document.getElementById('logSummary').textContent = `${body.children.length} 条日志`;
+  }
+
+  // 更新进度
+  function updateProgress(event) {
+    const bar = document.getElementById('progressBar');
+    bar.style.display = 'block';
+    document.getElementById('progressLabel').textContent = event.summary || event.current_agent || '处理中...';
+    document.getElementById('progressPercent').textContent = Math.round(event.percent) + '%';
+    document.getElementById('progressFill').style.width = event.percent + '%';
+  }
+
+  // 显示结果
+  function showResult(event) {
+    const panel = document.getElementById('resultPanel');
+    panel.classList.add('show');
+    document.getElementById('resultSummary').textContent = event.summary || '';
+
+    if (event.workspace) {
+      loadFiles(event.workspace);
+    }
+    if (event.success) {
+      loadDeployment(event.workspace);
+    }
+  }
+
+  async function loadFiles(workspace) {
+    try {
+      const taskId = workspace.split('/').pop();
+      const r = await fetch('/api/v3/dev/tasks/' + taskId + '/files');
+      const d = await r.json();
+      const list = document.getElementById('resultFiles');
+      if (d.files && d.files.length) {
+        list.innerHTML = d.files.map(f => `
+          <li>
+            <span>${f.path}</span>
+            <span class="size">${f.size_text}</span>
+          </li>
+        `).join('');
+      } else {
+        list.innerHTML = '<li><span style="color:var(--muted)">暂无文件</span></li>';
+      }
+    } catch(e) {}
+  }
+
+  async function loadDeployment(taskId) {
+    try {
+      const r = await fetch('/api/v3/dev/tasks/' + taskId);
+      const d = await r.json();
+      const el = document.getElementById('resultDeployment');
+      if (d.deployment && d.deployment.url) {
+        el.innerHTML = `访问地址: <code>${d.deployment.url}</code><br>状态: ${d.deployment.health_check || '未知'}`;
+      } else {
+        el.textContent = '未部署或部署失败';
+      }
+    } catch(e) {}
+  }
+
+  // 开始开发
+  function startDev() {
+    const req = document.getElementById('requirement').value.trim();
+    if (!req) { alert('请输入开发需求'); return; }
+
+    const maxIter = parseInt(document.getElementById('iterSlider').value);
+    const btn = document.getElementById('startBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 开发中...';
+
+    // 重置面板
+    initAgentsPanel();
+    document.getElementById('logBody').innerHTML = '';
+    document.getElementById('resultPanel').classList.remove('show');
+    document.getElementById('progressBar').style.display = 'none';
+
+    // SSE
+    const source = new EventSource('/api/v3/dev/start?requirement=' + encodeURIComponent(req) + '&max_iterations=' + maxIter);
+
+    // 使用 fetch + POST 更合适，但 EventSource 只支持 GET
+    // 改用 fetch + ReadableStream
+    fetch('/api/v3/dev/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({requirement: req, max_iterations: maxIter}),
+    }).then(response => {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      function read() {
+        reader.read().then(({done, value}) => {
+          if (done) {
+            btn.disabled = false;
+            btn.textContent = '🚀 开始自主开发';
+            return;
+          }
+          buffer += decoder.decode(value, {stream: true});
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                btn.disabled = false;
+                btn.textContent = '🚀 开始自主开发';
+                loadTaskList();
+                return;
+              }
+              try {
+                const event = JSON.parse(data);
+                handleEvent(event);
+              } catch(e) {}
+            }
+          }
+          read();
+        });
+      }
+      read();
+    }).catch(e => {
+      alert('请求失败: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = '🚀 开始自主开发';
+    });
+  }
+
+  function handleEvent(event) {
+    addLog(event);
+
+    switch(event.type) {
+      case 'agent_start':
+        setAgentState(event.agent, 'running');
+        break;
+      case 'agent_complete':
+        setAgentState(event.agent, event.success ? 'done' : 'failed',
+          event.tool_calls + ' 次调用');
+        break;
+      case 'progress_update':
+        updateProgress(event);
+        break;
+      case 'dev_complete':
+        showResult(event);
+        break;
+      case 'loop_iteration':
+        if (event.status === 'retrying') {
+          // 重置 coder 为 running
+          setAgentState('coder', 'running', '修复中');
+        }
+        break;
+    }
+  }
+
+  // 加载历史任务
+  async function loadTaskList() {
+    try {
+      const r = await fetch('/api/v3/dev/tasks?limit=10');
+      const d = await r.json();
+      const list = document.getElementById('taskList');
+      if (!d.tasks || !d.tasks.length) {
+        list.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:0.5rem">暂无历史任务</div>';
+        return;
+      }
+      list.innerHTML = d.tasks.map(t => `
+        <div class="task-item" onclick="window.open('/api/v3/dev/tasks/${t.id}', '_blank')">
+          <div class="status-dot ${t.status}"></div>
+          <div class="req">${t.requirement}</div>
+          <div class="meta">${t.status} · ${t.iteration}/${t.max_iterations} 轮 · ${t.files_count} 文件</div>
+        </div>
+      `).join('');
+    } catch(e) {}
+  }
+
+  // 示例
+  window.setExample = function(idx) {
+    document.getElementById('requirement').value = EXAMPLES[idx];
+  };
+
+  window.startDev = startDev;
+
+  // 初始化
+  initAgentsPanel();
+  loadTaskList();
+})();
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import get_settings
 from .db.session import init_db
 from .api.routes import task, agent, memory, settings as settings_routes, stream, media, voice
-from .api.routes import tool_center, project
+from .api.routes import tool_center, project, v3_dev
 from .api import ws
 
 FRONTEND_DIR = "/dream-os/frontend"
@@ -58,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(ws.router)
     app.include_router(tool_center.router)
     app.include_router(project.router)
+    app.include_router(v3_dev.router)
 
     # 健康检查
     @app.get("/api/health")
