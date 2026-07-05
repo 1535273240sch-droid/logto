@@ -395,11 +395,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--ink); min-heig
     document.getElementById('resultPanel').classList.remove('show');
     document.getElementById('progressBar').style.display = 'none';
 
-    // SSE
-    const source = new EventSource('/api/v3/dev/start?requirement=' + encodeURIComponent(req) + '&max_iterations=' + maxIter);
-
-    // 使用 fetch + POST 更合适，但 EventSource 只支持 GET
-    // 改用 fetch + ReadableStream
+    // SSE: 使用 fetch + POST + ReadableStream (因为 EventSource 只支持 GET，而我们的接口是 POST)
     fetch('/api/v3/dev/start', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
