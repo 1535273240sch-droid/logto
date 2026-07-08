@@ -1,0 +1,78 @@
+{
+  "src/App.tsx": {
+    "sha256": "574d2d6b846158647f1d4f5d55f235ff5e061a1a0dc7f117d468fa452e8d655d",
+    "size": 926
+  },
+  "src/main.tsx": {
+    "sha256": "25b5ea40800092f029ed13b016f31cf6cb33d8df5b0df59025ffc87d155be807",
+    "size": 218
+  },
+  "index.html": {
+    "sha256": "cc0192b9f694698ad16ee6716cc5e8ab5a40abd2946eb7203135b8cadaba9c46",
+    "size": 4220
+  },
+  "components/IdleView.tsx": {
+    "sha256": "773cb33549045566c4f658c74b5a9874fe2b5e0923d980a3c3ba93fe46550f47",
+    "size": 934
+  },
+  "components/ThinkingView.tsx": {
+    "sha256": "e52912b3cc8e72e8b1af1581ec1c1dd27684447ed5d43b60df47cfa0ec7ad1f0",
+    "size": 1536
+  },
+  "components/WorkingView.tsx": {
+    "sha256": "27acd76cb20fc675648c4f739cb9f1f5b55716195dd6339c75493747abec2fd4",
+    "size": 8227
+  },
+  "components/DeliveryView.tsx": {
+    "sha256": "c8f9ab82791b91c7a6a0577cf65f9f4219dddfff9037181646a216aba5e7c3be",
+    "size": 3883
+  },
+  "components/DreamCanvas.tsx": {
+    "sha256": "a1c135835c16b227d2e557cbb862a2d9426d10bfec714c682e7b637a93f361e9",
+    "size": 13753
+  },
+  "components/DreamLayout.tsx": {
+    "sha256": "691e509a08bccfe96d3e1a48245f4500bfe2d427167bf3672db5a437dad5dbec",
+    "size": 3852
+  },
+  "components/Brand.tsx": {
+    "sha256": "3ec0a413c82c4383db054471ce774c197e4b6f01c5b9fe3fa381c2db2fc1c292",
+    "size": 2126
+  },
+  "components/InputBar.tsx": {
+    "sha256": "2fcd11d5e01e458ed6aeefb6066512c577f1a5d3d5d12e5188c3ee3148a3dc15",
+    "size": 9312
+  },
+  "core/DreamState.ts": {
+    "sha256": "2c94e67f4005bffe0e7ff8ef213f7800a49db321c9daf0831f435fa560181688",
+    "size": 4066
+  },
+  "core/EventBus.ts": {
+    "sha256": "a82d65ea390a24e13cba8e3f129a3b5fe39364d6f296f45fdc738d74388c757c",
+    "size": 2331
+  },
+  "core/Registry.ts": {
+    "sha256": "b6a577facaec7ff7f5109d1725886444e8e6964f53ed9e212c4a36326e491a00",
+    "size": 1794
+  },
+  "core/Config.ts": {
+    "sha256": "f2201f07998d74f7ab92bac9375bd15c1d3b51e4c16aa2fe25ddc9915f184174",
+    "size": 1685
+  },
+  "core/Theme.ts": {
+    "sha256": "92663bb2f98def96e34809c1a360abe940fb4f263344da2eb471cb2ce509ad37",
+    "size": 1591
+  },
+  "core/index.ts": {
+    "sha256": "e050caeb2913da5122a1b14bd29e59ef33e00987174a1f56832917db56260db9",
+    "size": 931
+  },
+  "core/UIProtector.ts": {
+    "sha256": "260522c845f52ba5eab7353656e412f54305e3c618ad9a800a3e4b2e304eb9dc",
+    "size": 6258
+  },
+  "context/DreamContext.tsx": {
+    "sha256": "fd41d9d70592d8855fd29aa3014943af572f713327c491c9040a426cb0d851d9",
+    "size": 960
+  }
+}

@@ -1,0 +1,41 @@
+# Quality Guardian 配置
+# 警告：此文件属于 Core 层，普通 Agent 只读
+
+guardian:
+  enabled: true
+  max_repair_attempts: 3
+  require_approval: true
+
+checks:
+  code_quality: true
+  architecture: true
+  design_system: true
+  component_deps: true
+  regression: true
+  api_compat: true
+  db_compat: true
+  performance: true
+  security: true
+  stability: true
+
+regression:
+  test_modules:
+    - chat
+    - search
+    - image
+    - file_upload
+    - memory
+    - agent
+    - workflow
+    - project
+    - chart
+    - api
+    - database
+    - home
+    - dev_mode
+  auto_run: true
+
+backup:
+  enabled: true
+  snapshot_before_modify: true
+  auto_rollback: true

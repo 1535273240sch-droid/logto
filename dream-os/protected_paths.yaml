@@ -1,0 +1,29 @@
+# Dream OS Protected Paths
+# 服务器级 AI 禁改规则配置
+# 这些路径不允许任何自动化工具/AI Agent 修改
+
+protected_paths:
+  home_page:
+    - /workspace/frontend/components/DreamCanvas.tsx
+    - /workspace/frontend/components/HeaderControls.tsx  
+    - /workspace/frontend/components/Brand.tsx
+    - /workspace/frontend/components/InputBar.tsx
+    - /workspace/frontend/src/App.tsx
+    - /workspace/frontend/index.html
+    - /workspace/frontend/core/Theme.ts
+    permission_level: P0
+    locked: true
+
+  core_assets:
+    - /dream-os/core/
+    - /workspace/frontend/core/
+    permission_level: P1
+    readonly: true
+
+rules:
+  - path_pattern: "**/components/DreamCanvas.*"
+    action: deny
+    reason: "首页核心组件 - 宪法第二章保护"
+  - path_pattern: "**/index.html"
+    action: deny
+    reason: "首页入口 - 宪法第二章保护"

@@ -1,0 +1,35 @@
+# 环境变量
+.env
+.env.local
+
+# 依赖
+node_modules/
+venv/
+.venv/
+
+# 构建产物
+.next/
+__pycache__/
+*.pyc
+*.pyo
+*.so
+dist/
+build/
+
+# 数据
+pgdata/
+*.tar.gz
+*.db
+*.sqlite3
+
+# 系统
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# 编辑器
+.idea/
+.vscode/
+.vscode-server/

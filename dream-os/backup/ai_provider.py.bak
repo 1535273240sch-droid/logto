@@ -1,0 +1,125 @@
+"""AI Provider — 统一 LLM 客户端工厂"""
+import json
+import logging
+from typing import Optional
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from ..config import get_settings
+
+logger = logging.getLogger("dream-os.ai_provider")
+
+_cached_client = None
+_cached_model = None
+_cached_settings_hash = None
+
+# 分层模型缓存
+_tier_cache: dict[str, tuple] = {}
+
+
+def invalidate_cache():
+    global _cached_client, _cached_model, _cached_settings_hash
+    _cached_client = None
+    _cached_model = None
+    _cached_settings_hash = None
+    logger.info("AI Provider cache invalidated")
+
+
+async def get_ai_client(db: Optional[AsyncSession] = None, tier: str = "fast"):
+    """获取 AI 客户端和模型名
+
+    支持分层路由:
+    - tier="fast": 使用 Flash/Air 模型（意图检测、路由、工具结果观察）
+    - tier="deep": 使用 DeepSeek/强模型（需求分析、架构设计、最终回复）
+    """
+    global _cached_client, _cached_model, _cached_settings_hash
+
+    # 构建配置哈希
+    settings_hash = "default"
+    if db:
+        try:
+            # 优先读 ai_engine_providers
+            result = await db.execute(
+                select(__import__('app.models.setting', fromlist=['Setting']).Setting)
+                .where(__import__('app.models.setting', fromlist=['Setting']).Setting.key == "ai_engine_providers")
+            )
+            row = result.scalar_one_or_none()
+            if row and row.value:
+                settings_hash = row.value[:100]
+        except Exception:
+            pass
+
+    # 分层模型缓存
+    cache_key = f"{settings_hash}:{tier}"
+    if cache_key in _tier_cache:
+        return _tier_cache[cache_key]
+
+    if _cached_client and _cached_settings_hash == settings_hash and tier == "fast":
+        return _cached_client, _cached_model
+
+    # 尝试从 ai_engine_providers 读取
+    api_key = ""
+    base_url = ""
+    model = "gpt-4o"
+
+    if db:
+        try:
+            from ..models.setting import Setting
+            result = await db.execute(
+                select(Setting).where(Setting.key == "ai_engine_providers")
+            )
+            row = result.scalar_one_or_none()
+            if row and row.value:
+                providers = json.loads(row.value)
+                for p in providers:
+                    if p.get("enabled") and p.get("isDefault") and p.get("apiKey"):
+                        base_url = p.get("baseUrl", "")
+                        api_key = p.get("apiKey", "")
+                        model = p.get("modelId", "gpt-4o")
+                        logger.info(f"Using provider: {p.get('name')} model={model}")
+                        break
+                if not api_key:
+                    # 回退：找第一个启用且有 key 的
+                    for p in providers:
+                        if p.get("enabled") and p.get("apiKey"):
+                            base_url = p.get("baseUrl", "")
+                            api_key = p.get("apiKey", "")
+                            model = p.get("modelId", "gpt-4o")
+                            logger.info(f"Using fallback provider: {p.get('name')}")
+                            break
+        except Exception as e:
+            logger.warning(f"Failed to read ai_engine_providers: {e}")
+
+    # 如果没读到，回退到旧的 model_* settings
+    if not api_key and db:
+        try:
+            from ..models.setting import Setting
+            for key in ["model_api_key", "model_base_url", "model"]:
+                r = await db.execute(select(Setting).where(Setting.key == key))
+                r2 = r.scalar_one_or_none()
+                if r2:
+                    if key == "model_api_key": api_key = r2.value
+                    elif key == "model_base_url": base_url = r2.value
+                    elif key == "model": model = r2.value
+        except Exception:
+            pass
+
+    if not api_key or not base_url:
+        logger.warning("No API key configured, AI will not work")
+        raise ValueError("请先配置 AI 模型: 点击「AI 引擎」按钮添加 Provider")
+
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=60,
+        )
+        _cached_client = client
+        _cached_model = model
+        _cached_settings_hash = settings_hash
+        _tier_cache[cache_key] = (client, model)
+        logger.info(f"AI client created: {base_url} model={model} tier={tier}")
+        return client, model
+    except Exception as e:
+        logger.error(f"Failed to create AI client: {e}")
+        raise
