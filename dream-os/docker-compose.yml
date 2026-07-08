@@ -34,3 +34,4 @@ networks:
     driver: bridge
   dream-os_default:
     external: true
+    name: dream-os_default
