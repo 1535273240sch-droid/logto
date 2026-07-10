@@ -1,7 +1,7 @@
 /**
  * Dream Input — Dream OS 品牌组件 + Living Interface
  *
- * 胶囊形、玻璃、极细光圈呼吸。
+ * 胶囊形、渐变边框、极细高光、弹性 hover。
  * 发送按钮：隐藏 → 淡入（输入时）→ 淡出（清空后）。
  * 关键词检测：输入时匹配的功能按钮自然浮现。
  * 点击功能按钮：选择模式（高亮），不提交。用户输入完整任务后按 Enter/发送才提交。
@@ -129,41 +129,65 @@ export function InputBar({
         zIndex: 1,
       }}
     >
+      {/*
+       * 渐变边框容器 — 用 background 渐变模拟边框
+       * 1px padding 留出边框厚度，内层承载实际内容
+       */}
       <div
         style={{
           position: "relative",
-          background: "rgba(255,255,255,0.02)",
-          backdropFilter: "blur(28px)",
-          WebkitBackdropFilter: "blur(28px)",
           borderRadius: 28,
-          padding: sp(3),
-          border: isActive
-            ? "1px solid rgba(108,92,231,0.5)"
-            : "1px solid rgba(255,255,255,0.06)",
-          animation: "none",
-          transition: "border-color 0.8s ease",
+          padding: 1,
+          background: isActive
+            ? "linear-gradient(135deg, rgba(108,92,231,0.50), rgba(108,92,231,0.08), transparent)"
+            : "linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02), transparent)",
+          transition: "background 0.8s ease",
           boxShadow: isActive
             ? "0 0 30px rgba(108,92,231,0.35), 0 0 64px rgba(108,92,231,0.18)"
-            : "none",
-          zIndex: 1,
+            : "inset 0 1px 0 rgba(255,255,255,0.06)",
         }}
       >
-        {isActive && (
+        {/* 内层 — 实际内容区 */}
+        <div
+          style={{
+            position: "relative",
+            borderRadius: 27,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(28px)",
+            WebkitBackdropFilter: "blur(28px)",
+          }}
+        >
+          {/* 顶部 1px 高光（inset 效果） */}
           <div
             style={{
               position: "absolute",
-              inset: 0,
-              borderRadius: 28,
-              background: "linear-gradient(90deg, transparent 0%, rgba(108,92,231,0) 30%, rgba(108,92,231,0.30) 50%, rgba(108,92,231,0) 70%, transparent 100%)",
-              backgroundSize: "200% 100%",
-              animation: "shimmer 2.6s linear infinite",
+              top: 0,
+              left: 12,
+              right: 12,
+              height: 1,
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
+              borderRadius: "1px",
               pointerEvents: "none",
-              zIndex: 0,
+              zIndex: 2,
             }}
           />
-        )}
 
-        <textarea
+          {isActive && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: 27,
+                background: "linear-gradient(90deg, transparent 0%, rgba(108,92,231,0) 30%, rgba(108,92,231,0.30) 50%, rgba(108,92,231,0) 70%, transparent 100%)",
+                backgroundSize: "200% 100%",
+                animation: "shimmer 2.6s linear infinite",
+                pointerEvents: "none",
+                zIndex: 0,
+              }}
+            />
+          )}
+
+          <textarea
           ref={textareaRef}
           value={value}
           onChange={handleChange}
@@ -245,8 +269,9 @@ export function InputBar({
               </svg>
             </button>
           )}
-        </div>
-      </div>
+        </div>{/* /right-side buttons */}
+        </div>{/* /inner content */}
+      </div>{/* /gradient border wrapper */}
 
       {matchedHints.length > 0 && (
         <div
@@ -265,6 +290,14 @@ export function InputBar({
             <button
               key={hint.mode}
               onClick={() => handleFeatureClick(hint)}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
               style={{
                 display: "flex", alignItems: "center", gap: sp(6),
                 padding: `${sp(8)} ${sp(16)}`,
@@ -272,16 +305,18 @@ export function InputBar({
                   ? "rgba(108,92,231,0.18)"
                   : "rgba(255,255,255,0.04)",
                 backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
                 border: isSelected
                   ? "1px solid rgba(108,92,231,0.4)"
                   : "1px solid rgba(255,255,255,0.08)",
                 borderRadius: sp(radius("button")),
                 color: isSelected ? color("accentLight") : color("textSecondary"),
                 fontSize: sp(13), cursor: "pointer",
-                transition: "all 0.3s ease", whiteSpace: "nowrap",
+                transition: "all 0.3s cubic-bezier(.2,.9,.3,1.25)",
+                whiteSpace: "nowrap",
                 boxShadow: isSelected
-                  ? "0 0 10px rgba(108,92,231,0.15)"
-                  : "none",
+                  ? "0 0 10px rgba(108,92,231,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
+                  : "inset 0 1px 0 rgba(255,255,255,0.04)",
               }}
             >
               <span style={{ fontSize: sp(15) }}>{hint.icon}</span>

@@ -237,8 +237,9 @@ export function WorkingView({ disabled, onCancel }: WorkingViewProps) {
         >
           <div
             style={{
-              background: "rgba(255,255,255,0.015)",
-              backdropFilter: "blur(16px)",
+              background: "rgba(0,0,0,0.25)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
               borderRadius: sp(radius("card")),
               padding: sp(theme.spacing.sm),
               fontSize: sp(theme.fontSize.body),
@@ -247,7 +248,8 @@ export function WorkingView({ disabled, onCancel }: WorkingViewProps) {
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
               animation: "fadeInUp 0.5s ease-out",
-              border: "1px solid rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.2)",
             }}
           >
             {content}

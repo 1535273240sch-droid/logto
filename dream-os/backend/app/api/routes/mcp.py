@@ -13,6 +13,12 @@ _server_info = {"name": "DreamOS-Filesystem", "version": "1.0.0"}
 
 
 async def verify_token(request: Request):
+    # 支持 Authorization header 和 URL query parameter（兼容 RikkaHub）
+    token = request.query_params.get("token", "")
+    if token:
+        if token == MCP_API_TOKEN:
+            return
+        raise HTTPException(status_code=403, detail="Invalid Bearer token")
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")

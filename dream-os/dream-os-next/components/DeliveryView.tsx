@@ -47,12 +47,14 @@ export function DeliveryView({ onSubmit }: DeliveryViewProps) {
       >
         <div
           style={{
-            background: "rgba(255,255,255,0.015)",
-            backdropFilter: "blur(16px)",
+            background: "rgba(0,0,0,0.25)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
             borderRadius: sp(radius("cardLarge")),
             padding: sp(theme.spacing.md),
             animation: "fadeInUp 0.5s ease-out",
-            border: "1px solid rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.2)",
           }}
         >
           <div
@@ -84,8 +86,10 @@ export function DeliveryView({ onSubmit }: DeliveryViewProps) {
                 key={artifact.id}
                 style={{
                   padding: sp(theme.spacing.sm), borderRadius: sp(radius("card")),
-                  background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.04)",
                   marginBottom: sp(theme.spacing.xs),
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
                 }}
               >
                 <div style={{ fontSize: sp(theme.fontSize.body), fontWeight: 500, color: color("textPrimary"), marginBottom: sp(theme.spacing.xs) }}>
