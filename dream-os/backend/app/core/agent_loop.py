@@ -10,6 +10,17 @@ from ..tools.stock import StockTool
 from ..core.response_cache import get_response_cache
 from ..tools.image import ImageTool
 logger = logging.getLogger("dream-os.agent_loop")
+
+# 任务确认信号（用于 task.py 的 confirm 端点）
+_pending_confirmations: dict[str, asyncio.Event] = {}
+_confirm_results: dict[str, bool] = {}
+
+
+def signal_confirmation(task_id: str, confirmed: bool):
+    """发送确认信号给正在等待的 Agent"""
+    _confirm_results[task_id] = confirmed
+    if task_id in _pending_confirmations:
+        _pending_confirmations[task_id].set()
 CHAT_SYSTEM_PROMPT = """你是 Dream OS 的 AI 助手。
 ## 可用工具
 - stock_query: 查询股票、黄金、白银、加密货币实时价格
@@ -20,13 +31,14 @@ CHAT_SYSTEM_PROMPT = """你是 Dream OS 的 AI 助手。
 - weather_query: 查询天气（weather:城市名）
 - http_fetch: 联网查询信息
 - shell_exec: 执行 Linux 命令
-- image_generate: 生成图片（image:描述词）
+- image_generate: 生成图片（image:描述词），支持"赛博朋克/水墨/油画/水彩/素描/像素/动漫/写实/3D/卡通"风格，在描述词中加入风格关键词即可
 ## 规则
 1. 常识/百科问题直接回答，不调用工具
 2. 实时信息（天气、股价、金价、新闻）调用工具查询
 3. 每次只调用一个工具
 4. 简洁、自然，不暴露工具调用细节
-5. 工具失败时告知用户原因，不要重复调用同一工具"""
+5. 工具失败时告知用户原因，不要重复调用同一工具
+6. 生成图片后，把图片 URL 放在回复末尾，格式为：![图片](URL)"""
 MAX_LOOP_ITERATIONS = 5
 @dataclass
 class AgentStep:

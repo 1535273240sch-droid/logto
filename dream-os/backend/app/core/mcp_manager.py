@@ -5,8 +5,15 @@ import asyncio
 import json
 import logging
 from typing import Optional
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+try:
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    ClientSession = None
+    StdioServerParameters = None
+    stdio_client = None
 
 logger = logging.getLogger("dream-os.mcp")
 
@@ -19,6 +26,9 @@ class MCPManager:
         self._read_task: Optional[asyncio.Task] = None
 
     async def start_filesystem(self, allowed_dir: str = "/app"):
+        if not MCP_AVAILABLE:
+            logger.warning("MCP package not installed, skipping filesystem MCP")
+            return False
         server_params = StdioServerParameters(
             command="npx",
             args=["@modelcontextprotocol/server-filesystem", allowed_dir],
@@ -49,6 +59,8 @@ class MCPManager:
         return "\n".join(parts)
 
     async def shutdown(self):
+        if not MCP_AVAILABLE:
+            return
         if self.session:
             await self.session.__aexit__(None, None, None)
         if self._client_ctx:

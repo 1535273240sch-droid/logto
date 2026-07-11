@@ -156,6 +156,23 @@ function ChatBubble({
           }}
         >
           <span>{displayedContent}</span>
+          {/* 渲染内容中的图片链接 */}
+          {(() => {
+            // 匹配标准图片扩展名 + Pollinations.ai 风格的 URL
+            const imgRegex = /(https?:\/\/[^\s"]+?\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?[^\s]*)?|https?:\/\/image\.pollinations\.ai\/prompt\/[^\s"]+)/gi;
+            const matches = [...displayedContent.matchAll(imgRegex)];
+            if (matches.length === 0) return null;
+            return matches.map((m, i) => (
+              <div key={i} style={{ marginTop: sp(8), borderRadius: 12, overflow: "hidden" }}>
+                <img
+                  src={m[0]}
+                  alt="生成图片"
+                  style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 12, display: "block" }}
+                  loading="lazy"
+                />
+              </div>
+            ));
+          })()}
           {(isStreaming || showCursor) && (
             <span
               style={{

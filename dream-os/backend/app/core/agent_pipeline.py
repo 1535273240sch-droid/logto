@@ -21,6 +21,7 @@ from ..core.intent_detector import detect_intent, IntentType, IntentResult
 from ..core.tool_registry import ToolRegistry, ToolExecutionRecord, ToolStatus
 from ..core.planner import Planner, ExecutionPlan, PlanStep
 from ..core.ai_provider import get_ai_client
+from ..tools.image import ImageTool
 from ..logger import TaskLogger
 
 logger = logging.getLogger("dream-os.pipeline")
@@ -200,6 +201,7 @@ class AgentPipeline:
         self.db = db_session
         self.memory = ContextMemoryManager(db_session, conversation_id)
         self.registry = ToolRegistry()
+        self._register_tools()
         self.planner = Planner()
         self.pipeline_log: list[dict] = []
 
@@ -213,6 +215,18 @@ class AgentPipeline:
     def _log(self, stage: str, data: dict):
         self.pipeline_log.append({"stage": stage, "data": data})
         logger.info(f"[Pipeline:{stage}] {json.dumps(data, ensure_ascii=False)[:200]}")
+
+    # ── Tool Registration ──────────────────────────────
+
+    def _register_tools(self):
+        """注册所有可用工具"""
+        from ..tools.stock import StockTool
+        from ..tools.weather import WeatherTool
+        from ..tools.http import HttpTool
+        self.registry.register("image_generate", ImageTool())
+        self.registry.register("stock_query", StockTool())
+        self.registry.register("weather_query", WeatherTool())
+        self.registry.register("http_fetch", HttpTool())
 
     # ── Step 1: Context Builder ──────────────────────────────
 
@@ -385,6 +399,22 @@ class AgentPipeline:
             "failed": sum(1 for r in self._tool_records if r.status == ToolStatus.FAILED),
         })
         return self._tool_records
+
+    async def execute_tool(self, tool_name: str, command: str) -> ToolExecutionRecord:
+        """直接执行指定工具（绕过 Planner，用于强制路由）
+
+        Args:
+            tool_name: 工具名称（如 "image_generate"）
+            command: 执行命令
+
+        Returns:
+            工具执行记录
+        """
+        record = await self.registry.execute(tool_name, command, timeout=30)
+        if record:
+            record.intent = self._intent.intent_type if self._intent else ""
+            self._tool_records.append(record)
+        return record
 
     # ── Step 6: Observation ──────────────────────────────
 

@@ -1,13 +1,32 @@
-"""Image Tool — 图片生成工具"""
+"""Image Tool — 图片生成工具
+
+使用 Pollinations.ai 免费 API（无需 API Key），支持多种风格。
+当用户说"画/生成/创建一张图片"时触发。
+"""
 import json
 import logging
+import urllib.parse
 from ..tools.base import BaseTool, ToolResult
 
 logger = logging.getLogger("dream-os.tools.image")
 
+# 风格映射
+STYLE_PROMPTS = {
+    "赛博朋克": "cyberpunk, neon lights, dark atmosphere, futuristic city, vibrant colors",
+    "水墨": "ink wash painting, traditional Chinese painting, brush strokes, black ink",
+    "油画": "oil painting, rich textures, impasto, classic art style",
+    "水彩": "watercolor, soft colors, flowing washes, paper texture",
+    "素描": "pencil sketch, black and white, hand-drawn, shading",
+    "像素": "pixel art, 8-bit style, retro game, blocky pixels",
+    "动漫": "anime style, cel shading, vibrant colors, Japanese animation",
+    "写实": "photorealistic, highly detailed, realistic lighting, 8K UHD",
+    "3D": "3D render, C4D, blender, volumetric lighting, octane render",
+    "卡通": "cartoon style, flat colors, cute, simple shapes",
+}
+
 
 class ImageTool(BaseTool):
-    """图片生成工具 — 调用 AI 生成图片"""
+    """图片生成工具 — 调用 Pollinations.ai 免费 API 生成图片"""
 
     name = "image_generate"
     description = "生成图片（根据文字描述创建图片）"
@@ -17,10 +36,11 @@ class ImageTool(BaseTool):
 
         command 格式:
             image:一只可爱的猫
-            image:山水画风格
+            image:赛博朋克风格的都市
+            也可以带风格: 画一张水墨风格的山水画
         """
         try:
-            prompt = command.replace("image:", "").strip()
+            prompt = command.replace("image:", "").replace("画一张", "").replace("生成", "").strip()
             if not prompt:
                 return ToolResult(success=False, stderr="请提供图片描述")
             return await self._generate_image(prompt)
@@ -33,71 +53,40 @@ class ImageTool(BaseTool):
             )
 
     async def _generate_image(self, prompt: str) -> ToolResult:
-        """调用 AI 图片生成 API（读 DB 设置，与 chat 模型一致）"""
+        """调用 Pollinations.ai 免费 API 生成图片"""
         import httpx
-        from ..config import get_settings
-        from ..core.ai_provider import get_ai_client
 
-        settings = get_settings()
-        # 优先用 DB 保存的模型配置（与对话模型保持一致），fallback 到 .env
+        # 检查是否包含风格关键词
+        style_prompt = ""
+        prompt_lower = prompt.lower()
+        for style_cn, style_en in STYLE_PROMPTS.items():
+            if style_cn in prompt_lower:
+                style_prompt = f", {style_en}"
+                break
+
+        # 构建最终 prompt（英文效果更好，但中文也支持）
+        full_prompt = f"{prompt}{style_prompt}"
+
+        encoded = urllib.parse.quote(full_prompt)
+
+        # Pollinations.ai 直接返回图片（无需 API Key）
+        image_url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true&seed={hash(prompt) % 100000}"
+
+        # 验证图片 URL 可访问
         try:
-            client, model = await get_ai_client()
-            api_key = client.api_key
-            base_url = str(client.base_url).rstrip("/")
-            # 智能选择图片模型：
-            # - 当前模型名含 image → 直接用（如 agnes-image-2.1-flash）
-            # - agnes 渠道 → 用 agnes-image-2.1-flash
-            # - openai/dall-e → 用 dall-e-3
-            # - 其他 → 尝试用当前模型（部分 LLM 网关支持文生图）
-            if "image" in model.lower():
-                image_model = model
-            elif "agnes" in model.lower():
-                image_model = "agnes-image-2.1-flash"
-            elif "dall" in model.lower():
-                image_model = "dall-e-3"
-            else:
-                image_model = model
-        except Exception:
-            api_key = settings.openai_api_key
-            base_url = settings.openai_base_url
-            image_model = settings.openai_model
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.head(image_url, follow_redirects=True)
+                if resp.status_code != 200:
+                    logger.warning(f"Pollinations HEAD returned {resp.status_code}, using URL anyway")
+        except Exception as e:
+            logger.warning(f"Pollinations verification failed: {e}")
 
-        # 使用 OpenAI 兼容的图片生成 API
-        url = f"{base_url.rstrip('/')}/images/generations"
+        result = json.dumps({
+            "image_url": image_url,
+            "prompt": prompt,
+            "style_prompt": style_prompt,
+            "success": True,
+            "tip": "右键图片 → 保存为图片即可下载",
+        }, ensure_ascii=False)
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": image_model,
-                    "prompt": prompt,
-                    "n": 1,
-                    "size": "1024x1024",
-                    "quality": "standard",
-                },
-            )
-
-            data = response.json()
-
-            if "data" in data and len(data["data"]) > 0:
-                image_url = data["data"][0].get("url", "")
-                revised_prompt = data["data"][0].get("revised_prompt", "")
-
-                result = json.dumps({
-                    "image_url": image_url,
-                    "revised_prompt": revised_prompt,
-                    "prompt": prompt,
-                    "success": True,
-                }, ensure_ascii=False)
-
-                return ToolResult(success=True, stdout=result)
-            else:
-                error = data.get("error", {}).get("message", str(data))
-                return ToolResult(
-                    success=False,
-                    stderr=f"图片生成 API 返回错误: {error[:300]}",
-                )
+        return ToolResult(success=True, stdout=result)
