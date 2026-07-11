@@ -2,6 +2,7 @@ import React from "react";
 import { theme, sp, color, radius } from "../core";
 import { useDreamContext } from "../context/DreamContext";
 import { Artifact } from "../types/dream";
+import { artifactStore } from "../core/ArtifactStore";
 import { Brand } from "./Brand";
 import { InputBar } from "./InputBar";
 
@@ -98,6 +99,16 @@ export function DeliveryView({ onSubmit }: DeliveryViewProps) {
 
             {artifacts.map((artifact: Artifact) => {
               const actionLabel = ACTION_LABELS[artifact.type] || "打开成果";
+
+              const handleDelete = async () => {
+                try {
+                  await fetch(`/api/artifacts/${artifact.id}`, { method: "DELETE" });
+                } catch (e) {
+                  console.warn("Delete API failed, removing locally:", e);
+                }
+                artifactStore.remove(artifact.id);
+              };
+
               return (
                 <div
                   key={artifact.id}
@@ -107,22 +118,35 @@ export function DeliveryView({ onSubmit }: DeliveryViewProps) {
                     marginBottom: sp(theme.spacing.xs),
                   }}
                 >
-                  <div style={{ fontSize: sp(theme.fontSize.body), fontWeight: 500, color: color("textPrimary"), marginBottom: sp(theme.spacing.xs) }}>
+                  <div style={{ fontSize: sp(theme.fontSize.body), fontWeight: 500, color: color("textPrimary"), marginBottom: sp(theme.spacing.sm) }}>
                     {artifact.name}
                   </div>
-                  {artifact.preview_url && (
+                  <div style={{ display: "flex", gap: sp(8) }}>
+                    {artifact.preview_url && (
+                      <button
+                        style={{
+                          background: "linear-gradient(135deg, #6c5ce7, #a29bfe)", color: "#fff",
+                          border: "none", borderRadius: sp(radius("button")),
+                          padding: `${sp(8)} ${sp(18)}`, fontSize: sp(theme.fontSize.caption),
+                          cursor: "pointer", boxShadow: "0 4px 16px rgba(108,92,231,0.3)",
+                        }}
+                        onClick={() => window.open(artifact.preview_url, "_blank")}
+                      >
+                        {actionLabel}
+                      </button>
+                    )}
                     <button
+                      onClick={handleDelete}
                       style={{
-                        background: "linear-gradient(135deg, #6c5ce7, #a29bfe)", color: "#fff",
-                        border: "none", borderRadius: sp(radius("button")),
-                        padding: `${sp(8)} ${sp(18)}`, fontSize: sp(theme.fontSize.caption),
-                        cursor: "pointer", boxShadow: "0 4px 16px rgba(108,92,231,0.3)",
+                        background: "rgba(225,112,85,0.12)", color: color("error"),
+                        border: "1px solid rgba(225,112,85,0.2)", borderRadius: sp(radius("button")),
+                        padding: `${sp(8)} ${sp(14)}`, fontSize: sp(theme.fontSize.caption),
+                        cursor: "pointer", marginLeft: "auto",
                       }}
-                      onClick={() => window.open(artifact.preview_url, "_blank")}
                     >
-                      {actionLabel}
+                      删除
                     </button>
-                  )}
+                  </div>
                 </div>
               );
             })}

@@ -289,7 +289,14 @@ export function ArtifactVault({ isOpen, onClose }: ArtifactVaultProps) {
                         下载
                       </button>
                       <button
-                        onClick={() => artifactStore.remove(artifact.id)}
+                        onClick={async () => {
+                          try {
+                            await fetch(`/api/artifacts/${artifact.id}`, { method: "DELETE" });
+                          } catch (e) {
+                            console.warn("Delete API failed:", e);
+                          }
+                          artifactStore.remove(artifact.id);
+                        }}
                         style={{
                           background: "transparent",
                           color: color("error"),

@@ -21,6 +21,7 @@ import React, { useRef, useEffect, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { theme, sp, color, radius } from "../core";
 import { Artifact } from "../types/dream";
+import { artifactStore } from "../core/ArtifactStore";
 
 export interface ChatItem {
   id: string;
@@ -187,22 +188,45 @@ function ChatBubble({
                   }}
                 >
                   <span style={{ fontSize: 12 }}>{a.name}</span>
-                  {a.preview_url && (
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    {a.preview_url && (
+                      <button
+                        onClick={() => onArtifactOpen?.(a.preview_url)}
+                        style={{
+                          background: `linear-gradient(135deg, ${color("accent")}, ${color("accentHover")})`,
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: sp(radius("button")),
+                          padding: `2px 10px`,
+                          fontSize: 11,
+                          cursor: "pointer",
+                        }}
+                      >
+                        打开
+                      </button>
+                    )}
                     <button
-                      onClick={() => onArtifactOpen?.(a.preview_url)}
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/artifacts/${a.id}`, { method: "DELETE" });
+                        } catch (e) {
+                          console.warn("Delete API failed:", e);
+                        }
+                        artifactStore.remove(a.id);
+                      }}
                       style={{
-                        background: `linear-gradient(135deg, ${color("accent")}, ${color("accentHover")})`,
-                        color: "#fff",
-                        border: "none",
+                        background: "rgba(225,112,85,0.12)",
+                        color: color("error"),
+                        border: "1px solid rgba(225,112,85,0.2)",
                         borderRadius: sp(radius("button")),
-                        padding: `2px 10px`,
+                        padding: `2px 8px`,
                         fontSize: 11,
                         cursor: "pointer",
                       }}
                     >
-                      打开
+                      删除
                     </button>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
