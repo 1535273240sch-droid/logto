@@ -17,6 +17,11 @@ const ACTION_LABELS: Record<string, string> = {
   code: "查看源码",
 };
 
+// 主页风格视觉常量（与 InputBar / ChatVirtualList 一致）
+const BORDER_GRADIENT = "linear-gradient(135deg, rgba(108,92,231,0.45) 0%, rgba(162,155,254,0.18) 50%, rgba(255,255,255,0.05) 100%)";
+const INNER_BG = "rgba(10,10,18,0.55)";
+const TOP_HIGHLIGHT = "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)";
+
 export function DeliveryView({ onSubmit }: DeliveryViewProps) {
   const { dreamState } = useDreamContext();
   const snapshot = dreamState.getSnapshot();
@@ -45,72 +50,83 @@ export function DeliveryView({ onSubmit }: DeliveryViewProps) {
           marginTop: sp(theme.spacing.md),
         }}
       >
+        {/* 外层：1px padding 渐变描边 */}
         <div
           style={{
-            background: "rgba(0,0,0,0.25)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
+            background: BORDER_GRADIENT,
+            padding: 1,
             borderRadius: sp(radius("cardLarge")),
-            padding: sp(theme.spacing.md),
+            boxShadow: "0 4px 18px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)",
             animation: "fadeInUp 0.5s ease-out",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.2)",
           }}
         >
+          {/* 内层：深色玻璃 + 顶部高光 */}
           <div
             style={{
-              fontSize: sp(11), fontWeight: 500, color: color("textMuted"),
-              marginBottom: sp(theme.spacing.sm), textTransform: "uppercase",
-              letterSpacing: "1px", opacity: 0.6,
+              background: INNER_BG,
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              borderRadius: `calc(${sp(radius("cardLarge"))} - 1px)`,
+              padding: sp(theme.spacing.md),
+              backgroundImage: TOP_HIGHLIGHT,
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "100% 1px",
+              backgroundPosition: "top",
             }}
           >
-            任务完成
-          </div>
-
-          {content && (
             <div
               style={{
-                fontSize: sp(theme.fontSize.body), color: color("textPrimary"),
-                lineHeight: "1.8", whiteSpace: "pre-wrap", wordBreak: "break-word",
-                marginBottom: sp(theme.spacing.md),
+                fontSize: sp(11), fontWeight: 500, color: color("textMuted"),
+                marginBottom: sp(theme.spacing.sm), textTransform: "uppercase",
+                letterSpacing: "1px", opacity: 0.6,
               }}
             >
-              {content}
+              任务完成
             </div>
-          )}
 
-          {artifacts.map((artifact: Artifact) => {
-            const actionLabel = ACTION_LABELS[artifact.type] || "打开成果";
-            return (
+            {content && (
               <div
-                key={artifact.id}
                 style={{
-                  padding: sp(theme.spacing.sm), borderRadius: sp(radius("card")),
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.04)",
-                  marginBottom: sp(theme.spacing.xs),
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+                  fontSize: sp(theme.fontSize.body), color: color("textPrimary"),
+                  lineHeight: "1.8", whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  marginBottom: sp(theme.spacing.md),
                 }}
               >
-                <div style={{ fontSize: sp(theme.fontSize.body), fontWeight: 500, color: color("textPrimary"), marginBottom: sp(theme.spacing.xs) }}>
-                  {artifact.name}
-                </div>
-                {artifact.preview_url && (
-                  <button
-                    style={{
-                      background: "linear-gradient(135deg, #6c5ce7, #a29bfe)", color: "#fff",
-                      border: "none", borderRadius: sp(radius("button")),
-                      padding: `${sp(8)} ${sp(18)}`, fontSize: sp(theme.fontSize.caption),
-                      cursor: "pointer", boxShadow: "0 4px 16px rgba(108,92,231,0.3)",
-                    }}
-                    onClick={() => window.open(artifact.preview_url, "_blank")}
-                  >
-                    {actionLabel}
-                  </button>
-                )}
+                {content}
               </div>
-            );
-          })}
+            )}
+
+            {artifacts.map((artifact: Artifact) => {
+              const actionLabel = ACTION_LABELS[artifact.type] || "打开成果";
+              return (
+                <div
+                  key={artifact.id}
+                  style={{
+                    padding: sp(theme.spacing.sm), borderRadius: sp(radius("card")),
+                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
+                    marginBottom: sp(theme.spacing.xs),
+                  }}
+                >
+                  <div style={{ fontSize: sp(theme.fontSize.body), fontWeight: 500, color: color("textPrimary"), marginBottom: sp(theme.spacing.xs) }}>
+                    {artifact.name}
+                  </div>
+                  {artifact.preview_url && (
+                    <button
+                      style={{
+                        background: "linear-gradient(135deg, #6c5ce7, #a29bfe)", color: "#fff",
+                        border: "none", borderRadius: sp(radius("button")),
+                        padding: `${sp(8)} ${sp(18)}`, fontSize: sp(theme.fontSize.caption),
+                        cursor: "pointer", boxShadow: "0 4px 16px rgba(108,92,231,0.3)",
+                      }}
+                      onClick={() => window.open(artifact.preview_url, "_blank")}
+                    >
+                      {actionLabel}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

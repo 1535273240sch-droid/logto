@@ -1,10 +1,16 @@
 /**
  * Dream Input — Dream OS 品牌组件 + Living Interface
  *
- * 胶囊形、渐变边框、极细高光、弹性 hover。
+ * 胶囊形、玻璃、渐变边框、极细光圈呼吸。
  * 发送按钮：隐藏 → 淡入（输入时）→ 淡出（清空后）。
  * 关键词检测：输入时匹配的功能按钮自然浮现。
  * 点击功能按钮：选择模式（高亮），不提交。用户输入完整任务后按 Enter/发送才提交。
+ *
+ * 视觉规范（与主页风格统一）：
+ * - 外层 1px padding 技巧做紫色渐变描边
+ * - 内层 rgba(0,0,0,0.35) + blur(28px) 玻璃背景
+ * - 顶部 1px 高光（linear-gradient white 0.14 → 透明）
+ * - 激活态：0 0 30px 紫色光晕 + shimmer 流动
  */
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
@@ -52,6 +58,12 @@ interface InputBarProps {
   onTypingChange?: (isTyping: boolean) => void;
 }
 
+// 主页风格视觉常量
+const BORDER_GRADIENT = "linear-gradient(135deg, rgba(108,92,231,0.55) 0%, rgba(162,155,254,0.20) 50%, rgba(255,255,255,0.05) 100%)";
+const INNER_BG = "rgba(0,0,0,0.35)";
+const TOP_HIGHLIGHT = "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.14) 50%, transparent 100%)";
+const SHIMMER_GRADIENT = "linear-gradient(90deg, transparent 0%, rgba(108,92,231,0) 30%, rgba(108,92,231,0.30) 50%, rgba(108,92,231,0) 70%, transparent 100%)";
+
 export function InputBar({
   placeholder = "今天，你想完成什么？",
   disabled = false,
@@ -82,7 +94,7 @@ export function InputBar({
     const el = textareaRef.current;
     if (el) {
       el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+      el.style.height = Math.min(el.scrollHeight, 96) + "px";
     }
   };
 
@@ -129,56 +141,43 @@ export function InputBar({
         zIndex: 1,
       }}
     >
-      {/*
-       * 渐变边框容器 — 用 background 渐变模拟边框
-       * 1px padding 留出边框厚度，内层承载实际内容
-       */}
+      {/* 外层：1px padding 技巧做渐变描边 */}
       <div
         style={{
           position: "relative",
-          borderRadius: 28,
+          background: BORDER_GRADIENT,
           padding: 1,
-          background: isActive
-            ? "linear-gradient(135deg, rgba(108,92,231,0.50), rgba(108,92,231,0.08), transparent)"
-            : "linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02), transparent)",
-          transition: "background 0.8s ease",
+          borderRadius: 28,
           boxShadow: isActive
-            ? "0 0 30px rgba(108,92,231,0.35), 0 0 64px rgba(108,92,231,0.18)"
-            : "inset 0 1px 0 rgba(255,255,255,0.06)",
+            ? "0 0 30px rgba(108,92,231,0.35), 0 0 64px rgba(108,92,231,0.18), inset 0 1px 0 rgba(255,255,255,0.06)"
+            : "0 4px 18px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)",
+          transition: "box-shadow 0.5s ease",
         }}
       >
-        {/* 内层 — 实际内容区 */}
+        {/* 内层：玻璃 + 顶部高光 */}
         <div
           style={{
             position: "relative",
-            borderRadius: 27,
-            background: "rgba(0,0,0,0.35)",
+            background: INNER_BG,
             backdropFilter: "blur(28px)",
             WebkitBackdropFilter: "blur(28px)",
+            borderRadius: 27,
+            padding: sp(3),
+            backgroundImage: TOP_HIGHLIGHT,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "100% 1px",
+            backgroundPosition: "top",
+            overflow: "hidden",
           }}
         >
-          {/* 顶部 1px 高光（inset 效果） */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 12,
-              right: 12,
-              height: 1,
-              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
-              borderRadius: "1px",
-              pointerEvents: "none",
-              zIndex: 2,
-            }}
-          />
-
+          {/* Shimmer 流光（激活态） */}
           {isActive && (
             <div
               style={{
                 position: "absolute",
                 inset: 0,
                 borderRadius: 27,
-                background: "linear-gradient(90deg, transparent 0%, rgba(108,92,231,0) 30%, rgba(108,92,231,0.30) 50%, rgba(108,92,231,0) 70%, transparent 100%)",
+                background: SHIMMER_GRADIENT,
                 backgroundSize: "200% 100%",
                 animation: "shimmer 2.6s linear infinite",
                 pointerEvents: "none",
@@ -188,90 +187,92 @@ export function InputBar({
           )}
 
           <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={1}
-          style={{
-            width: "100%",
-            background: "transparent",
-            border: "none",
-            color: color("textPrimary"),
-            fontSize: sp(theme.fontSize.body),
-            padding: `${sp(16)} ${sp(52)} ${sp(16)} ${sp(22)}`,
-            resize: "none",
-            outline: "none",
-            lineHeight: "24px",
-            fontFamily: "inherit",
-            borderRadius: 26,
-            position: "relative",
-            zIndex: 1,
-            caretColor: color("accentLight"),
-          }}
-        />
+            ref={textareaRef}
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder={placeholder}
+            disabled={disabled}
+            rows={1}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              color: color("textPrimary"),
+              fontSize: sp(theme.fontSize.body),
+              padding: `${sp(12)} ${sp(48)} ${sp(12)} ${sp(18)}`,
+              resize: "none",
+              outline: "none",
+              lineHeight: "22px",
+              fontFamily: "inherit",
+              borderRadius: 26,
+              position: "relative",
+              zIndex: 1,
+              caretColor: color("accentLight"),
+              WebkitAppearance: "none",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          />
 
-        <div
-          style={{
-            position: "absolute",
-            right: sp(10),
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "flex",
-            alignItems: "center",
-            gap: sp(4),
-            zIndex: 2,
-          }}
-        >
-          {disabled && (
-            <button
-              onClick={onCancel}
-              style={{
-                width: 32, height: 32, borderRadius: "50%",
-                border: "none", background: "rgba(225,112,85,0.12)",
-                color: color("error"), cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.3s ease", opacity: 0.8,
-              }}
-              aria-label="取消"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/>
-              </svg>
-            </button>
-          )}
+          <div
+            style={{
+              position: "absolute",
+              right: sp(10),
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: sp(4),
+              zIndex: 2,
+            }}
+          >
+            {disabled && (
+              <button
+                onClick={onCancel}
+                style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  border: "none", background: "rgba(225,112,85,0.12)",
+                  color: color("error"), cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.3s ease", opacity: 0.8,
+                }}
+                aria-label="取消"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                  <rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/>
+                </svg>
+              </button>
+            )}
 
-          {!disabled && (
-            <button
-              onClick={handleSubmit}
-              disabled={!isTyping}
-              style={{
-                width: 32, height: 32, borderRadius: "50%",
-                border: "none",
-                background: isTyping ? "linear-gradient(135deg, #6c5ce7, #a29bfe)" : "rgba(255,255,255,0.04)",
-                color: isTyping ? "#fff" : "transparent",
-                cursor: isTyping ? "pointer" : "default",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                opacity: isTyping ? 1 : 0,
-                transform: isTyping ? "scale(1)" : "scale(0.6)",
-                transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-                boxShadow: isTyping ? "0 2px 10px rgba(108,92,231,0.4)" : "none",
-                pointerEvents: isTyping ? "auto" : "none",
-              }}
-              aria-label="发送"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2L8 14M8 2L4 6M8 2L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
-        </div>{/* /right-side buttons */}
-        </div>{/* /inner content */}
-      </div>{/* /gradient border wrapper */}
+            {!disabled && (
+              <button
+                onClick={handleSubmit}
+                disabled={!isTyping}
+                style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  border: "none",
+                  background: isTyping ? "linear-gradient(135deg, #6c5ce7, #a29bfe)" : "rgba(255,255,255,0.04)",
+                  color: isTyping ? "#fff" : "transparent",
+                  cursor: isTyping ? "pointer" : "default",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: isTyping ? 1 : 0,
+                  transform: isTyping ? "scale(1)" : "scale(0.6)",
+                  transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: isTyping ? "0 2px 10px rgba(108,92,231,0.4)" : "none",
+                  pointerEvents: isTyping ? "auto" : "none",
+                }}
+                aria-label="发送"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 2L8 14M8 2L4 6M8 2L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {matchedHints.length > 0 && (
         <div
@@ -290,14 +291,6 @@ export function InputBar({
             <button
               key={hint.mode}
               onClick={() => handleFeatureClick(hint)}
-              onMouseEnter={(e) => {
-                if (!isSelected) {
-                  e.currentTarget.style.transform = "translateY(-3px)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
               style={{
                 display: "flex", alignItems: "center", gap: sp(6),
                 padding: `${sp(8)} ${sp(16)}`,
@@ -312,11 +305,11 @@ export function InputBar({
                 borderRadius: sp(radius("button")),
                 color: isSelected ? color("accentLight") : color("textSecondary"),
                 fontSize: sp(13), cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(.2,.9,.3,1.25)",
-                whiteSpace: "nowrap",
+                transition: "all 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.25)", whiteSpace: "nowrap",
+                transform: isSelected ? "translateY(-2px)" : "translateY(0)",
                 boxShadow: isSelected
                   ? "0 0 10px rgba(108,92,231,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
-                  : "inset 0 1px 0 rgba(255,255,255,0.04)",
+                  : "none",
               }}
             >
               <span style={{ fontSize: sp(15) }}>{hint.icon}</span>

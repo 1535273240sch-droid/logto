@@ -3,6 +3,9 @@
  *
  * 双模式：chat（聊天） / dev（开发，8 Agent 工作流）
  * 模式由 InputBar 关键词检测自动切换。
+ *
+ * 聊天模式：当存在历史消息时，渲染虚拟滚动聊天列表（ChatVirtualList），
+ * 仅首轮（无历史）保留首页居中欢迎体验。
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -16,6 +19,9 @@ import { IdleView } from "./IdleView";
 import { ThinkingView } from "./ThinkingView";
 import { WorkingView } from "./WorkingView";
 import { DeliveryView } from "./DeliveryView";
+import { InputBar } from "./InputBar";
+import { ChatVirtualList, ChatItem } from "./ChatVirtualList";
+import { CinematicBackground } from "./CinematicBackground";
 
 export function DreamCanvas() {
   const { dreamState, eventBus } = useDreamContext();
@@ -34,6 +40,7 @@ export function DreamCanvas() {
   }, [dreamState]);
 
   const currentState = snapshot.state;
+  const hasHistory = snapshot.history.length > 0;
 
   const handleDEPEvent = useCallback(
     async (event: DEPPayload, taskId: string) => {
@@ -101,6 +108,13 @@ export function DreamCanvas() {
   const handleSubmit = useCallback(
     async (value: string, mode: string = "chat") => {
       const taskId = `task_${Date.now()}`;
+
+      // ── 多轮历史：把上一轮 AI 回复提交进历史，再记录本轮用户消息 ──
+      const prev = dreamState.getSnapshot();
+      if (prev.content) {
+        dreamState.commitAssistant(prev.content, prev.artifacts);
+      }
+      dreamState.commitUser(value);
 
       dreamState.enterThinking(
         {
@@ -337,6 +351,31 @@ export function DreamCanvas() {
     }
   };
 
+  // ── 聊天模式（有历史时）：虚拟滚动列表 + 底部输入 ──
+  const buildChatItems = (): ChatItem[] => {
+    const base: ChatItem[] = snapshot.history.map((h) => ({
+      id: h.id,
+      role: h.role,
+      content: h.content,
+      artifacts: h.artifacts,
+      ts: h.ts,
+    }));
+    if (currentState !== DreamStateVariant.IDLE) {
+      const liveContent =
+        snapshot.content ||
+        snapshot.thinkingMessage ||
+        (currentState === DreamStateVariant.WORKING ? "执行中…" : "");
+      base.push({
+        id: "live",
+        role: "assistant",
+        content: liveContent,
+        artifacts: snapshot.artifacts,
+        ts: Date.now(),
+      });
+    }
+    return base;
+  };
+
   return (
     <div
       style={{
@@ -348,6 +387,8 @@ export function DreamCanvas() {
         overflow: "hidden",
       }}
     >
+      {/* 电影感星云背景：全站统一风格，始终激活 */}
+      <CinematicBackground active={true} />
       <div
         style={{
           position: "relative",
@@ -355,9 +396,34 @@ export function DreamCanvas() {
           flex: 1,
           display: "flex",
           flexDirection: "column",
+          minHeight: 0,
         }}
       >
-        {renderContent()}
+        {!hasHistory ? (
+          renderContent()
+        ) : (
+          <>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ChatVirtualList
+                items={buildChatItems()}
+                onArtifactOpen={(url) => window.open(url, "_blank")}
+              />
+            </div>
+            <div
+              style={{
+                padding: `${sp(12)} 0 ${sp(16)}`,
+                background: "transparent",
+              }}
+            >
+              <InputBar
+                onSubmit={handleSubmit}
+                disabled={currentState === DreamStateVariant.THINKING || currentState === DreamStateVariant.WORKING}
+                onCancel={handleCancel}
+                placeholder="继续聊点什么…"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── 人机协作关卡弹窗 ── */}
