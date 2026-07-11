@@ -62,7 +62,8 @@ export function ChatVirtualList({ items, onArtifactOpen }: ChatVirtualListProps)
         height: "100%",
         overflowY: "auto",
         overflowX: "hidden",
-        padding: `${sp(theme.spacing.md)} ${sp(theme.spacing.md)}`,
+        // 顶部预留空间避开 HeaderControls (position: fixed; top: 24px)
+        padding: `80px ${sp(theme.spacing.md)} ${sp(theme.spacing.md)}`,
       }}
     >
       <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
