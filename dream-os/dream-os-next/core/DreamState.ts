@@ -21,6 +21,14 @@ export interface TaskContext {
   current_agent?: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  artifacts?: Artifact[];
+  ts: number;
+}
+
 export interface DreamStateSnapshot {
   state: DreamStateVariant;
   activeTask: TaskContext | null;
@@ -29,6 +37,7 @@ export interface DreamStateSnapshot {
   backgroundTaskCount: number;
   thinkingMessage: string;
   content: string;
+  history: ChatMessage[];
 }
 
 type StateChangeListener = (snapshot: DreamStateSnapshot) => void;
@@ -43,6 +52,7 @@ export class DreamState {
   private _backgroundTaskCount = 0;
   private _thinkingMessage = "";
   private _content = "";
+  private _history: ChatMessage[] = [];
   private _listeners: StateChangeListener[] = [];
 
   private constructor() {}
@@ -90,6 +100,35 @@ export class DreamState {
     this._emit();
   }
 
+  // ── 聊天历史 ──
+
+  /** 添加用户消息到历史 */
+  addUserMessage(content: string): void {
+    this._history.push({
+      id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      role: "user",
+      content,
+      ts: Date.now(),
+    });
+  }
+
+  /** 完成 AI 回复：把当前 content 固化为历史消息，并清空 content 准备下一轮 */
+  commitAssistantMessage(artifacts?: Artifact[]): ChatMessage | null {
+    if (!this._content) return null;
+    const msg: ChatMessage = {
+      id: `a_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      role: "assistant",
+      content: this._content,
+      artifacts: artifacts ? [...artifacts] : undefined,
+      ts: Date.now(),
+    };
+    this._history.push(msg);
+    this._content = "";
+    this._artifacts = [];
+    this._emit();
+    return msg;
+  }
+
   // ── Agent 状态 ──
 
   updateAgent(agent: AgentStatus): void {
@@ -134,6 +173,7 @@ export class DreamState {
       backgroundTaskCount: this._backgroundTaskCount,
       thinkingMessage: this._thinkingMessage,
       content: this._content,
+      history: [...this._history],
     };
   }
 

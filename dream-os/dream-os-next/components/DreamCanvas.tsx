@@ -112,9 +112,9 @@ export function DreamCanvas() {
       // ── 多轮历史：把上一轮 AI 回复提交进历史，再记录本轮用户消息 ──
       const prev = dreamState.getSnapshot();
       if (prev.content) {
-        dreamState.commitAssistant(prev.content, prev.artifacts);
+        dreamState.commitAssistantMessage(prev.artifacts);
       }
-      dreamState.commitUser(value);
+      dreamState.addUserMessage(value);
 
       dreamState.enterThinking(
         {
@@ -165,14 +165,9 @@ export function DreamCanvas() {
             try {
               const parsed = JSON.parse(raw);
 
-              // ── content 事件：逐 token 增量渲染（打字效果） ──
+              // ── content 事件：chunk 增量推入状态，由 ChatBubble 打字机按字符展示 ──
               if (parsed.type === "content" && parsed.content) {
                 dreamState.appendContent(parsed.content);
-                // 流式更新：逐 token 渲染
-                const text = parsed.content;
-                for (let i = 0; i < text.length; i += 3) {
-                  await new Promise(r => setTimeout(r, 5));
-                }
                 continue;
               }
 
@@ -365,12 +360,17 @@ export function DreamCanvas() {
         snapshot.content ||
         snapshot.thinkingMessage ||
         (currentState === DreamStateVariant.WORKING ? "执行中…" : "");
+      // 用 activeTask.task_id 作为 live item id，
+      // 每次新对话轮次切换时，ChatBubble 会重新挂载，可见长度从 0 重新开始打字
+      const liveId = snapshot.activeTask?.task_id || "live";
       base.push({
-        id: "live",
+        id: liveId,
         role: "assistant",
         content: liveContent,
         artifacts: snapshot.artifacts,
         ts: Date.now(),
+        // 整个 AI 应答阶段都开打字机：流式 chunk 不断推入 content
+        streaming: !!snapshot.content,
       });
     }
     return base;
